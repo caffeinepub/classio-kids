@@ -1,0 +1,101 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --radius: 1rem;
+    /* Sky blue primary */
+    --background: 0.965 0.008 240;
+    --foreground: 0.18 0.04 245;
+    --card: 1 0 0;
+    --card-foreground: 0.18 0.04 245;
+    --popover: 1 0 0;
+    --popover-foreground: 0.18 0.04 245;
+    /* Deep blue primary button */
+    --primary: 0.42 0.16 255;
+    --primary-foreground: 1 0 0;
+    --secondary: 0.94 0.03 240;
+    --secondary-foreground: 0.25 0.05 245;
+    --muted: 0.94 0.02 240;
+    --muted-foreground: 0.5 0.03 240;
+    --accent: 0.94 0.03 240;
+    --accent-foreground: 0.25 0.05 245;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 1 0 0;
+    --border: 0.88 0.02 240;
+    --input: 0.88 0.02 240;
+    --ring: 0.42 0.16 255;
+    /* Brand colors as chart variables */
+    --chart-1: 0.65 0.16 220;
+    --chart-2: 0.68 0.18 150;
+    --chart-3: 0.55 0.22 280;
+    --chart-4: 0.65 0.2 330;
+    --chart-5: 0.72 0.18 60;
+    --sidebar: 0.97 0.01 240;
+    --sidebar-foreground: 0.18 0.04 245;
+    --sidebar-primary: 0.42 0.16 255;
+    --sidebar-primary-foreground: 1 0 0;
+    --sidebar-accent: 0.94 0.03 240;
+    --sidebar-accent-foreground: 0.25 0.05 245;
+    --sidebar-border: 0.88 0.02 240;
+    --sidebar-ring: 0.42 0.16 255;
+
+    /* App-specific brand colors */
+    --hero-blue: 0.64 0.16 224;
+    --nursery-yellow: 0.83 0.17 90;
+    --lkg-orange: 0.72 0.17 56;
+    --ukg-green: 0.67 0.18 150;
+    --rhymes-blue: 0.64 0.16 220;
+    --phonic-green: 0.66 0.18 148;
+    --stories-purple: 0.54 0.22 280;
+    --cvc-pink: 0.64 0.2 330;
+    --footer-navy: 0.24 0.06 242;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Nunito", sans-serif;
+  }
+}
+
+.font-nunito {
+  font-family: "Nunito", sans-serif;
+}
+
+.bg-hero-blue {
+  background-color: oklch(var(--hero-blue));
+}
+.bg-nursery-yellow {
+  background-color: oklch(var(--nursery-yellow));
+}
+.bg-lkg-orange {
+  background-color: oklch(var(--lkg-orange));
+}
+.bg-ukg-green {
+  background-color: oklch(var(--ukg-green));
+}
+.bg-rhymes-blue {
+  background-color: oklch(var(--rhymes-blue));
+}
+.bg-phonic-green {
+  background-color: oklch(var(--phonic-green));
+}
+.bg-stories-purple {
+  background-color: oklch(var(--stories-purple));
+}
+.bg-cvc-pink {
+  background-color: oklch(var(--cvc-pink));
+}
+.bg-footer-navy {
+  background-color: oklch(var(--footer-navy));
+}
+.text-footer-navy {
+  color: oklch(var(--footer-navy));
+}
