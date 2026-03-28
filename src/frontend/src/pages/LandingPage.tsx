@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
-import { GraduationCap } from "lucide-react";
+import { usePWAInstall } from "@/hooks/usePWAInstall";
+import { Download, GraduationCap } from "lucide-react";
 import { motion } from "motion/react";
 
 type Page =
@@ -17,6 +18,8 @@ const LOGO_SRC =
   "/assets/uploads/classio_logo_reel_compressed-019d34e7-3f43-735c-a01a-d5ae52a4ffd6-1.jpeg";
 
 export default function LandingPage({ onNavigate }: Props) {
+  const { canInstall, promptInstall } = usePWAInstall();
+
   return (
     <div className="min-h-screen font-nunito bg-gradient-to-b from-sky-50 to-white">
       {/* Header */}
@@ -33,6 +36,16 @@ export default function LandingPage({ onNavigate }: Props) {
             </span>
           </div>
           <div className="flex items-center gap-3">
+            {canInstall && (
+              <Button
+                onClick={promptInstall}
+                variant="outline"
+                className="rounded-full border-green-400 text-green-300 hover:bg-green-900/30 font-bold text-sm"
+                data-ocid="nav.install_app.button"
+              >
+                <Download className="w-4 h-4 mr-1" /> Install App
+              </Button>
+            )}
             <Button
               onClick={() => onNavigate("student-login")}
               className="rounded-full bg-primary text-white font-bold text-sm"
@@ -104,6 +117,7 @@ export default function LandingPage({ onNavigate }: Props) {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.5, type: "spring", stiffness: 200 }}
+              className="flex flex-col items-center gap-4"
             >
               <Button
                 onClick={() => onNavigate("student-login")}
@@ -112,6 +126,20 @@ export default function LandingPage({ onNavigate }: Props) {
               >
                 🚀 Student Login
               </Button>
+
+              {canInstall && (
+                <motion.button
+                  type="button"
+                  onClick={promptInstall}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                  className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold text-lg px-8 py-4 rounded-full shadow-lg transition-all hover:scale-105"
+                  data-ocid="hero.install_app.button"
+                >
+                  <Download className="w-5 h-5" />📲 Install App on Your Device
+                </motion.button>
+              )}
             </motion.div>
 
             <motion.p

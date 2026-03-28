@@ -99,3 +99,28 @@
 .text-footer-navy {
   color: oklch(var(--footer-navy));
 }
+
+/* Floating emoji animation */
+@keyframes emojiFloat {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+  }
+  25% {
+    transform: translateY(-12px) rotate(-5deg) scale(1.05);
+  }
+  75% {
+    transform: translateY(8px) rotate(5deg) scale(0.97);
+  }
+}
+
+/* Blob background animation */
+@keyframes floatBlob {
+  0%,
+  100% {
+    transform: translate(-40%, -40%) scale(1);
+  }
+  50% {
+    transform: translate(-40%, -40%) scale(1.15);
+  }
+}
