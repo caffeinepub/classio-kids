@@ -1,10 +1,21 @@
 import { Input } from "@/components/ui/input";
-import { Download, Loader2, Sparkles } from "lucide-react";
+import { Download, Loader2, Sparkles, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import type { Student } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 import type { Page } from "./LandingPage";
+
+// Extend Window interface for PWA install prompt
+declare global {
+  interface Window {
+    __pwaInstallPrompt: BeforeInstallPromptEvent | null;
+  }
+  interface BeforeInstallPromptEvent extends Event {
+    prompt(): Promise<void>;
+    userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+  }
+}
 
 interface Props {
   initialGrade?: string;
@@ -14,7 +25,7 @@ interface Props {
 }
 
 const LOGO_SRC =
-  "/assets/uploads/classio_logo_reel_compressed-019d34e7-3f43-735c-a01a-d5ae52a4ffd6-1.jpeg";
+  "/assets/generated/classio-kids-logo-transparent.dim_400x120.png";
 
 const FLOATERS = [
   { emoji: "🌟", top: "6%", left: "4%", size: 44, delay: 0, dur: 3.2 },
@@ -31,6 +42,21 @@ const FLOATERS = [
   { emoji: "🦄", top: "58%", left: "1%", size: 40, delay: 1.8, dur: 2.6 },
 ];
 
+function isIOS() {
+  return (
+    /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
+function isInStandaloneMode() {
+  return (
+    ("standalone" in navigator &&
+      (navigator as { standalone?: boolean }).standalone === true) ||
+    window.matchMedia("(display-mode: standalone)").matches
+  );
+}
+
 export default function StudentLogin({ onLogin, onNavigate }: Props) {
   const { actor } = useActor();
   const [rollNumber, setRollNumber] = useState("");
@@ -38,22 +64,30 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
   const [error, setError] = useState("");
   const [canInstall, setCanInstall] = useState(false);
   const [installing, setInstalling] = useState(false);
+  const [showIosBanner, setShowIosBanner] = useState(false);
 
   useEffect(() => {
-    // Check if prompt is already available (captured before mount)
     if (window.__pwaInstallPrompt) setCanInstall(true);
 
-    // Also listen for it arriving after mount
     function onReady() {
       setCanInstall(true);
     }
     window.addEventListener("pwaInstallReady", onReady);
 
-    // Hide button once app is installed
-    window.addEventListener("appinstalled", () => setCanInstall(false));
+    function onInstalled() {
+      setCanInstall(false);
+    }
+    window.addEventListener("appinstalled", onInstalled);
+    window.addEventListener("pwaInstalled", onInstalled);
+
+    if (isIOS() && !isInStandaloneMode()) {
+      setShowIosBanner(true);
+    }
 
     return () => {
       window.removeEventListener("pwaInstallReady", onReady);
+      window.removeEventListener("appinstalled", onInstalled);
+      window.removeEventListener("pwaInstalled", onInstalled);
     };
   }, []);
 
@@ -75,14 +109,27 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
       setError("Please enter your Roll Number! 😊");
       return;
     }
-    if (!actor) {
-      setError("Connection not ready. Please try again!");
-      return;
-    }
     setLoading(true);
     setError("");
     try {
-      const student = await actor.studentLogin(rollNumber.trim(), "");
+      // Wait for actor to be ready (up to 3s)
+      let resolvedActor = actor;
+      if (!resolvedActor) {
+        for (let i = 0; i < 10; i++) {
+          await new Promise((r) => setTimeout(r, 300));
+          if (actor) {
+            resolvedActor = actor;
+            break;
+          }
+        }
+      }
+      if (!resolvedActor) {
+        setError(
+          "Connection not ready. Please check your internet and try again!",
+        );
+        return;
+      }
+      const student = await resolvedActor.studentLogin(rollNumber.trim(), "");
       onLogin(student);
     } catch {
       setError("Oops! Roll Number not found. Ask your teacher for help! 🙏");
@@ -94,31 +141,19 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
   return (
     <>
       <style>{`
-        @keyframes gradientShift {
-          0%   { background-position: 0% 50%; }
-          50%  { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
         @keyframes floatUp {
           0%, 100% { transform: translateY(0px) rotate(0deg); }
           33%       { transform: translateY(-18px) rotate(6deg); }
           66%       { transform: translateY(-10px) rotate(-4deg); }
         }
-        @keyframes pulseGlow {
-          0%, 100% { box-shadow: 0 0 0 4px #ffd93d, 0 0 0 8px #ff6b9d, 0 0 24px rgba(196,77,255,0.5); }
-          50%       { box-shadow: 0 0 0 6px #ffd93d, 0 0 0 12px #ff6b9d, 0 0 40px rgba(196,77,255,0.8); }
-        }
-        @keyframes shimmer {
+        @keyframes shimmerCyan {
           0%   { background-position: -200% center; }
           100% { background-position: 200% center; }
         }
-        .login-bg {
-          background: linear-gradient(
-            135deg,
-            #9b59b6, #e91e8c, #2196f3, #00bcd4, #4caf50, #ffc107, #ff5722, #9b59b6
-          );
-          background-size: 400% 400%;
-          animation: gradientShift 8s ease infinite;
+        @keyframes cyanPulse {
+          0%   { background-position: 0% 50%; }
+          50%  { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
         }
         .floater {
           position: fixed;
@@ -126,15 +161,10 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
           user-select: none;
           animation: floatUp var(--dur) ease-in-out infinite;
           animation-delay: var(--delay);
-          filter: drop-shadow(0 2px 8px rgba(0,0,0,0.2));
-        }
-        .logo-glow {
-          border-radius: 20px;
-          overflow: hidden;
-          animation: pulseGlow 2.5s ease-in-out infinite;
+          filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15));
         }
         .login-card {
-          background: linear-gradient(145deg, #fff9ff, #fff0fb, #f0f4ff);
+          background: #ffffff;
           border-radius: 2rem;
           position: relative;
           padding: 2.5rem 2rem 2rem;
@@ -142,11 +172,11 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
         .login-card::before {
           content: '';
           position: absolute;
-          inset: -4px;
+          inset: -3px;
           border-radius: 2.25rem;
-          background: linear-gradient(135deg, #ff6b9d, #c44dff, #4d79ff, #00c9a7, #ffd93d, #ff6b9d);
+          background: linear-gradient(135deg, #19D4FF, #00B0E3, #0096C4, #19D4FF);
           background-size: 300% 300%;
-          animation: gradientShift 4s ease infinite;
+          animation: cyanPulse 4s ease infinite;
           z-index: -1;
         }
         .login-card::after {
@@ -154,28 +184,28 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
           position: absolute;
           inset: -8px;
           border-radius: 2.5rem;
-          background: linear-gradient(135deg, #ff6b9d, #c44dff, #4d79ff, #00c9a7, #ffd93d);
+          background: linear-gradient(135deg, #19D4FF, #00B0E3, #0096C4);
           background-size: 300% 300%;
-          animation: gradientShift 4s ease infinite;
-          opacity: 0.35;
+          animation: cyanPulse 4s ease infinite;
+          opacity: 0.25;
           z-index: -2;
-          filter: blur(8px);
+          filter: blur(10px);
         }
         .shimmer-btn {
           background: linear-gradient(
             90deg,
-            #ff6b9d 0%, #c44dff 25%, #4d79ff 50%, #c44dff 75%, #ff6b9d 100%
+            #0096C4 0%, #19D4FF 25%, #00B0E3 50%, #19D4FF 75%, #0096C4 100%
           );
           background-size: 200% auto;
-          animation: shimmer 2.5s linear infinite;
+          animation: shimmerCyan 2.5s linear infinite;
           transition: transform 0.15s ease, opacity 0.15s ease;
         }
         .shimmer-btn:hover { transform: scale(1.04); }
         .shimmer-btn:active { transform: scale(0.97); }
         .roll-input {
           border: 3px solid transparent !important;
-          background-image: linear-gradient(white, white),
-            linear-gradient(135deg, #ff6b9d, #c44dff, #4d79ff, #ffd93d);
+          background-image: linear-gradient(#ffffff, #ffffff),
+            linear-gradient(135deg, #19D4FF, #00B0E3, #0096C4);
           background-origin: border-box;
           background-clip: padding-box, border-box;
           animation: none;
@@ -184,10 +214,14 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
           font-weight: 700;
           text-align: center;
           height: 3.25rem;
+          color: #0d1520;
           transition: box-shadow 0.2s ease;
         }
+        .roll-input::placeholder {
+          color: #aacdd8;
+        }
         .roll-input:focus {
-          box-shadow: 0 0 0 3px rgba(196,77,255,0.3), 0 4px 16px rgba(255,107,157,0.3);
+          box-shadow: 0 0 0 3px rgba(25,212,255,0.35), 0 4px 16px rgba(0,176,227,0.3);
           outline: none !important;
         }
         .confetti-strip {
@@ -195,27 +229,27 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
           top: 0; left: 0; right: 0;
           height: 6px;
           border-radius: 2rem 2rem 0 0;
-          background: linear-gradient(90deg, #ff6b9d, #c44dff, #4d79ff, #00c9a7, #ffd93d);
+          background: linear-gradient(90deg, #0096C4, #00B0E3, #19D4FF, #00B0E3, #0096C4);
           background-size: 300% 100%;
-          animation: gradientShift 3s ease infinite;
+          animation: cyanPulse 3s ease infinite;
         }
         .star-badge {
           display: inline-flex;
           align-items: center;
           gap: 4px;
-          background: linear-gradient(135deg, #ffd93d, #ff9a3c);
+          background: linear-gradient(135deg, #19D4FF, #00B0E3);
           border-radius: 9999px;
           padding: 4px 14px;
           font-size: 0.8rem;
           font-weight: 800;
-          color: #7a3500;
-          box-shadow: 0 2px 8px rgba(255,154,60,0.5);
+          color: #001a2e;
+          box-shadow: 0 2px 8px rgba(25,212,255,0.45);
           margin-bottom: 0.5rem;
         }
         .ghost-btn {
-          background: rgba(255,255,255,0.15);
-          border: 2px solid rgba(255,255,255,0.4);
-          color: rgba(255,255,255,0.9);
+          background: rgba(0,150,200,0.1);
+          border: 2px solid rgba(0,150,200,0.4);
+          color: #0077aa;
           border-radius: 9999px;
           padding: 8px 24px;
           font-size: 0.82rem;
@@ -229,7 +263,7 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
           gap: 6px;
         }
         .ghost-btn:hover {
-          background: rgba(255,255,255,0.28);
+          background: rgba(0,150,200,0.2);
           transform: scale(1.03);
         }
         .install-btn {
@@ -251,10 +285,39 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
         .install-btn:hover { transform: scale(1.04); opacity: 0.92; }
         .install-btn:active { transform: scale(0.97); }
         .install-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .ios-banner {
+          background: rgba(25,212,255,0.08);
+          backdrop-filter: blur(12px);
+          border: 2px solid rgba(25,212,255,0.4);
+          border-radius: 18px;
+          padding: 14px 16px 14px 14px;
+          color: #0077aa;
+          font-size: 0.82rem;
+          font-weight: 700;
+          line-height: 1.5;
+          position: relative;
+          max-width: 340px;
+          text-align: center;
+          box-shadow: 0 4px 20px rgba(0,150,200,0.15);
+        }
+        .ios-banner-close {
+          position: absolute;
+          top: 8px;
+          right: 10px;
+          background: rgba(25,212,255,0.2);
+          border: none;
+          border-radius: 9999px;
+          width: 22px;
+          height: 22px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #0077aa;
+        }
       `}</style>
 
       <div
-        className="login-bg"
         style={{
           minHeight: "100vh",
           display: "flex",
@@ -262,6 +325,8 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
           position: "relative",
           overflow: "hidden",
           fontFamily: "'Nunito', 'Figtree', sans-serif",
+          background:
+            "linear-gradient(135deg, #e0f7ff 0%, #f0fffe 20%, #fff0fb 40%, #fffbe0 60%, #f0fff4 80%, #e8f4ff 100%)",
         }}
       >
         {FLOATERS.map((f) => (
@@ -334,18 +399,16 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
                       ease: "easeInOut",
                     }}
                   >
-                    <div className="logo-glow">
-                      <img
-                        src={LOGO_SRC}
-                        alt="Classio Kids"
-                        style={{
-                          height: 120,
-                          width: "auto",
-                          objectFit: "contain",
-                          display: "block",
-                        }}
-                      />
-                    </div>
+                    <img
+                      src={LOGO_SRC}
+                      alt="Classio Kids"
+                      style={{
+                        height: 100,
+                        width: "auto",
+                        objectFit: "contain",
+                        display: "block",
+                      }}
+                    />
                   </motion.div>
                 </div>
 
@@ -382,7 +445,7 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
                       fontSize: "1.75rem",
                       fontWeight: 900,
                       background:
-                        "linear-gradient(135deg, #9b27af, #e91e8c, #2196f3)",
+                        "linear-gradient(135deg, #0096C4, #00B0E3, #0077aa)",
                       WebkitBackgroundClip: "text",
                       WebkitTextFillColor: "transparent",
                       backgroundClip: "text",
@@ -393,7 +456,7 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
                   </h1>
                   <p
                     style={{
-                      color: "#888",
+                      color: "#0077aa",
                       fontSize: "0.9rem",
                       fontWeight: 600,
                       marginTop: 6,
@@ -411,7 +474,7 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
                       fontSize: "0.85rem",
                       fontWeight: 800,
                       marginBottom: 8,
-                      color: "#c44dff",
+                      color: "#0096C4",
                     }}
                   >
                     📋 Your Roll Number
@@ -432,14 +495,14 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
                     initial={{ opacity: 0, y: -6 }}
                     animate={{ opacity: 1, y: 0 }}
                     style={{
-                      background: "#fff0f5",
-                      border: "2px solid #ff6b9d",
+                      background: "#e8f9ff",
+                      border: "2px solid #19D4FF",
                       borderRadius: 16,
                       padding: "10px 14px",
                       fontSize: "0.875rem",
                       fontWeight: 700,
                       textAlign: "center",
-                      color: "#d63384",
+                      color: "#0077aa",
                       marginBottom: 14,
                     }}
                     data-ocid="student_login.error_state"
@@ -465,7 +528,7 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
                     letterSpacing: "0.02em",
                     cursor: loading ? "not-allowed" : "pointer",
                     background: loading
-                      ? "linear-gradient(90deg, #aaa, #ccc)"
+                      ? "linear-gradient(90deg, #b0d8e8, #90c8dc)"
                       : undefined,
                     display: "flex",
                     alignItems: "center",
@@ -473,8 +536,8 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
                     gap: 8,
                     boxShadow: loading
                       ? "none"
-                      : "0 6px 20px rgba(196,77,255,0.45)",
-                    textShadow: "0 1px 4px rgba(0,0,0,0.2)",
+                      : "0 6px 20px rgba(25,212,255,0.4)",
+                    textShadow: "0 1px 4px rgba(0,0,0,0.3)",
                   }}
                 >
                   {loading ? (
@@ -495,7 +558,7 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
                 <p
                   style={{
                     textAlign: "center",
-                    color: "#aaa",
+                    color: "#5a8a9a",
                     fontSize: "0.78rem",
                     fontWeight: 600,
                     marginTop: 14,
@@ -506,7 +569,7 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
               </div>
             </motion.div>
 
-            {/* Install App button — shown when browser supports PWA install */}
+            {/* Install App button */}
             {canInstall && (
               <motion.button
                 type="button"
@@ -521,6 +584,31 @@ export default function StudentLogin({ onLogin, onNavigate }: Props) {
                 <Download size={18} />
                 {installing ? "Installing..." : "📲 Install App"}
               </motion.button>
+            )}
+
+            {/* iOS Safari install instructions banner */}
+            {showIosBanner && (
+              <motion.div
+                className="ios-banner"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+              >
+                <button
+                  type="button"
+                  className="ios-banner-close"
+                  onClick={() => setShowIosBanner(false)}
+                  aria-label="Dismiss"
+                >
+                  <X size={12} />
+                </button>
+                <div style={{ fontSize: "1.1rem", marginBottom: 6 }}>
+                  📱 Install on iPhone/iPad
+                </div>
+                Tap the <strong>Share</strong> button (⬆️) at the bottom of
+                Safari, then tap{" "}
+                <strong>&ldquo;Add to Home Screen&rdquo;</strong> 🏠
+              </motion.div>
             )}
 
             {/* Admin Login button */}

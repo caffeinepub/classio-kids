@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import type { Page } from "./LandingPage";
@@ -15,11 +15,25 @@ interface Props {
 export default function AdminLogin({ onAdminLogin, onBack }: Props) {
   const { login, loginStatus, identity, isLoggingIn, clear } =
     useInternetIdentity();
-  const { actor } = useActor();
+  const { actor, isFetching } = useActor();
   const [adminCheckError, setAdminCheckError] = useState(false);
+  const adminChecked = useRef(false);
 
   useEffect(() => {
-    if (loginStatus === "success" && identity && actor) {
+    // Reset on logout
+    if (!identity) {
+      adminChecked.current = false;
+      return;
+    }
+    // Trigger check when we have identity + actor + not fetching (covers both fresh login and pre-existing session)
+    if (
+      (loginStatus === "success" || loginStatus === "idle") &&
+      identity &&
+      actor &&
+      !isFetching &&
+      !adminChecked.current
+    ) {
+      adminChecked.current = true;
       setAdminCheckError(false);
       actor
         .isCallerAdmin()
@@ -27,16 +41,18 @@ export default function AdminLogin({ onAdminLogin, onBack }: Props) {
           if (isAdmin) {
             onAdminLogin();
           } else {
+            adminChecked.current = false;
             setAdminCheckError(true);
             clear();
           }
         })
         .catch(() => {
+          adminChecked.current = false;
           setAdminCheckError(true);
           clear();
         });
     }
-  }, [loginStatus, identity, actor, onAdminLogin, clear]);
+  }, [loginStatus, identity, actor, isFetching, onAdminLogin, clear]);
 
   return (
     <div className="min-h-screen font-nunito bg-background flex flex-col">
@@ -77,7 +93,9 @@ export default function AdminLogin({ onAdminLogin, onBack }: Props) {
             </p>
           </div>
 
-          {loginStatus === "success" && !adminCheckError ? (
+          {(loginStatus === "success" ||
+            (loginStatus === "idle" && identity)) &&
+          !adminCheckError ? (
             <div className="text-center" data-ocid="admin_login.success_state">
               <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-blue-600" />
               <p className="font-bold text-gray-700">
