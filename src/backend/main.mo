@@ -226,12 +226,12 @@ actor {
     studentPrincipals.remove(id);
   };
 
-  // Student login - returns student data and associates principal with student
-  // Students can only login as themselves (verified by roll number + grade)
+  // Student login - search by roll number only (grade param kept for API compatibility)
   public shared ({ caller }) func studentLogin(rollNumber : Text, grade : Text) : async Student {
-    // Find the student by roll number and grade
-    switch (students.values().toArray().find(func(stud) { Text.equal(stud.rollNumber, rollNumber) and Text.equal(stud.grade, grade) })) {
-      case (null) { Runtime.trap("Roll no. and grade are not correct! ") };
+    let trimmedRoll = rollNumber.trimStart(#char ' ').trimEnd(#char ' ');
+    // Find student by roll number only (case-insensitive by trimming spaces)
+    switch (students.values().toArray().find(func(stud) { Text.equal(stud.rollNumber, trimmedRoll) })) {
+      case (null) { Runtime.trap("Roll number not found. Please check and try again!") };
       case (?student) {
         // Associate this principal with the student ID for future authorization
         studentPrincipals.add(student.id, caller);
