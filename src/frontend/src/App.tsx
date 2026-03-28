@@ -4,13 +4,13 @@ import type { Student } from "./backend.d";
 import { useInternetIdentity } from "./hooks/useInternetIdentity";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminLogin from "./pages/AdminLogin";
-import LandingPage, { type Page } from "./pages/LandingPage";
+import type { Page } from "./pages/LandingPage";
 import StudentDashboard from "./pages/StudentDashboard";
 import StudentLogin from "./pages/StudentLogin";
 
 export default function App() {
   const { clear } = useInternetIdentity();
-  const [page, setPage] = useState<Page>("landing");
+  const [page, setPage] = useState<Page>("student-login");
   const [selectedGrade, setSelectedGrade] = useState<string | undefined>();
   const [currentStudent, setCurrentStudent] = useState<Student | null>(null);
 
@@ -26,7 +26,7 @@ export default function App() {
 
   function handleStudentLogout() {
     setCurrentStudent(null);
-    setPage("landing");
+    setPage("student-login");
   }
 
   function handleAdminLogin() {
@@ -35,18 +35,17 @@ export default function App() {
 
   function handleAdminLogout() {
     clear();
-    setPage("landing");
+    setPage("student-login");
   }
 
   return (
     <>
       <Toaster richColors position="top-right" />
-      {page === "landing" && <LandingPage onNavigate={navigate} />}
       {page === "student-login" && (
         <StudentLogin
           initialGrade={selectedGrade}
           onLogin={handleStudentLogin}
-          onBack={() => setPage("landing")}
+          onBack={() => setPage("student-login")}
           onNavigate={navigate}
         />
       )}
@@ -59,7 +58,7 @@ export default function App() {
       {page === "admin-login" && (
         <AdminLogin
           onAdminLogin={handleAdminLogin}
-          onBack={() => setPage("landing")}
+          onBack={() => setPage("student-login")}
           onNavigate={navigate}
         />
       )}

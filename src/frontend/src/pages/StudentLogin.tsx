@@ -1,8 +1,7 @@
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { Download, Loader2, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Student } from "../backend.d";
 import { useActor } from "../hooks/useActor";
 import type { Page } from "./LandingPage";
@@ -32,11 +31,44 @@ const FLOATERS = [
   { emoji: "🦄", top: "58%", left: "1%", size: 40, delay: 1.8, dur: 2.6 },
 ];
 
-export default function StudentLogin({ onLogin, onBack }: Props) {
+export default function StudentLogin({ onLogin, onNavigate }: Props) {
   const { actor } = useActor();
   const [rollNumber, setRollNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [canInstall, setCanInstall] = useState(false);
+  const [installing, setInstalling] = useState(false);
+
+  useEffect(() => {
+    // Check if prompt is already available (captured before mount)
+    if (window.__pwaInstallPrompt) setCanInstall(true);
+
+    // Also listen for it arriving after mount
+    function onReady() {
+      setCanInstall(true);
+    }
+    window.addEventListener("pwaInstallReady", onReady);
+
+    // Hide button once app is installed
+    window.addEventListener("appinstalled", () => setCanInstall(false));
+
+    return () => {
+      window.removeEventListener("pwaInstallReady", onReady);
+    };
+  }, []);
+
+  async function handleInstall() {
+    const prompt = window.__pwaInstallPrompt;
+    if (!prompt) return;
+    setInstalling(true);
+    await prompt.prompt();
+    const { outcome } = await prompt.userChoice;
+    if (outcome === "accepted") {
+      window.__pwaInstallPrompt = null;
+      setCanInstall(false);
+    }
+    setInstalling(false);
+  }
 
   async function handleLogin() {
     if (!rollNumber.trim()) {
@@ -72,25 +104,9 @@ export default function StudentLogin({ onLogin, onBack }: Props) {
           33%       { transform: translateY(-18px) rotate(6deg); }
           66%       { transform: translateY(-10px) rotate(-4deg); }
         }
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0) scale(1); }
-          50%       { transform: translateY(-12px) scale(1.12); }
-        }
-        @keyframes spinSlow {
-          from { transform: rotate(0deg); }
-          to   { transform: rotate(360deg); }
-        }
         @keyframes pulseGlow {
           0%, 100% { box-shadow: 0 0 0 4px #ffd93d, 0 0 0 8px #ff6b9d, 0 0 24px rgba(196,77,255,0.5); }
           50%       { box-shadow: 0 0 0 6px #ffd93d, 0 0 0 12px #ff6b9d, 0 0 40px rgba(196,77,255,0.8); }
-        }
-        @keyframes rainbowBorder {
-          0%   { border-color: #ff6b9d; }
-          20%  { border-color: #c44dff; }
-          40%  { border-color: #4d79ff; }
-          60%  { border-color: #00c9a7; }
-          80%  { border-color: #ffd93d; }
-          100% { border-color: #ff6b9d; }
         }
         @keyframes shimmer {
           0%   { background-position: -200% center; }
@@ -196,6 +212,45 @@ export default function StudentLogin({ onLogin, onBack }: Props) {
           box-shadow: 0 2px 8px rgba(255,154,60,0.5);
           margin-bottom: 0.5rem;
         }
+        .ghost-btn {
+          background: rgba(255,255,255,0.15);
+          border: 2px solid rgba(255,255,255,0.4);
+          color: rgba(255,255,255,0.9);
+          border-radius: 9999px;
+          padding: 8px 24px;
+          font-size: 0.82rem;
+          font-weight: 700;
+          cursor: pointer;
+          transition: background 0.2s, transform 0.15s;
+          backdrop-filter: blur(6px);
+          letter-spacing: 0.03em;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .ghost-btn:hover {
+          background: rgba(255,255,255,0.28);
+          transform: scale(1.03);
+        }
+        .install-btn {
+          background: linear-gradient(135deg, #00c9a7, #0096c7);
+          border: none;
+          color: white;
+          border-radius: 9999px;
+          padding: 10px 28px;
+          font-size: 0.9rem;
+          font-weight: 800;
+          cursor: pointer;
+          transition: transform 0.15s, opacity 0.15s;
+          box-shadow: 0 4px 16px rgba(0,150,199,0.5);
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          letter-spacing: 0.02em;
+        }
+        .install-btn:hover { transform: scale(1.04); opacity: 0.92; }
+        .install-btn:active { transform: scale(0.97); }
+        .install-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
       `}</style>
 
       <div
@@ -209,7 +264,6 @@ export default function StudentLogin({ onLogin, onBack }: Props) {
           fontFamily: "'Nunito', 'Figtree', sans-serif",
         }}
       >
-        {/* Floating emoji decorations */}
         {FLOATERS.map((f) => (
           <span
             key={f.emoji + f.top}
@@ -228,37 +282,6 @@ export default function StudentLogin({ onLogin, onBack }: Props) {
           </span>
         ))}
 
-        {/* Back button */}
-        <div
-          style={{ padding: "20px 20px 0", position: "relative", zIndex: 10 }}
-        >
-          <button
-            type="button"
-            onClick={onBack}
-            data-ocid="student_login.back.button"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "rgba(255,255,255,0.3)",
-              backdropFilter: "blur(8px)",
-              border: "2px solid rgba(255,255,255,0.5)",
-              borderRadius: "9999px",
-              padding: "8px 18px",
-              color: "white",
-              fontWeight: 800,
-              fontSize: "0.9rem",
-              cursor: "pointer",
-              transition: "background 0.2s",
-              textShadow: "0 1px 4px rgba(0,0,0,0.2)",
-            }}
-          >
-            <ArrowLeft size={16} />
-            Back
-          </button>
-        </div>
-
-        {/* Centred card */}
         <main
           style={{
             flex: 1,
@@ -270,218 +293,249 @@ export default function StudentLogin({ onLogin, onBack }: Props) {
             zIndex: 10,
           }}
         >
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.85 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{
-              duration: 0.6,
-              type: "spring",
-              stiffness: 140,
-              damping: 16,
-            }}
+          <div
             style={{
               width: "100%",
               maxWidth: 380,
-              position: "relative",
-              zIndex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 16,
             }}
           >
-            <div className="login-card" data-ocid="student_login.modal">
-              <div className="confetti-strip" />
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.85 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{
+                duration: 0.6,
+                type: "spring",
+                stiffness: 140,
+                damping: 16,
+              }}
+              style={{ width: "100%", position: "relative", zIndex: 1 }}
+            >
+              <div className="login-card" data-ocid="student_login.modal">
+                <div className="confetti-strip" />
 
-              {/* Logo */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  marginBottom: 16,
-                  marginTop: 8,
-                }}
-              >
-                <motion.div
-                  animate={{ y: [0, -8, 0] }}
-                  transition={{
-                    duration: 2.5,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: "easeInOut",
+                {/* Logo */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    marginBottom: 16,
+                    marginTop: 8,
                   }}
                 >
-                  <div className="logo-glow">
-                    <img
-                      src={LOGO_SRC}
-                      alt="Classio Kids"
-                      style={{
-                        height: 120,
-                        width: "auto",
-                        objectFit: "contain",
-                        display: "block",
-                      }}
-                    />
-                  </div>
-                </motion.div>
-              </div>
+                  <motion.div
+                    animate={{ y: [0, -8, 0] }}
+                    transition={{
+                      duration: 2.5,
+                      repeat: Number.POSITIVE_INFINITY,
+                      ease: "easeInOut",
+                    }}
+                  >
+                    <div className="logo-glow">
+                      <img
+                        src={LOGO_SRC}
+                        alt="Classio Kids"
+                        style={{
+                          height: 120,
+                          width: "auto",
+                          objectFit: "contain",
+                          display: "block",
+                        }}
+                      />
+                    </div>
+                  </motion.div>
+                </div>
 
-              {/* Star badge */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  marginBottom: 8,
-                }}
-              >
-                <div className="star-badge">✨ Learn and Lead ✨</div>
-              </div>
-
-              {/* Heading */}
-              <div style={{ textAlign: "center", marginBottom: 24 }}>
-                <motion.div
-                  animate={{ rotate: [0, -8, 8, -8, 0], scale: [1, 1.15, 1] }}
-                  transition={{
-                    duration: 1,
-                    delay: 0.8,
-                    repeat: Number.POSITIVE_INFINITY,
-                    repeatDelay: 4,
-                  }}
+                <div
                   style={{
-                    fontSize: 52,
-                    display: "inline-block",
+                    display: "flex",
+                    justifyContent: "center",
                     marginBottom: 8,
                   }}
                 >
-                  🎒
-                </motion.div>
-                <h1
+                  <div className="star-badge">✨ Learn and Lead ✨</div>
+                </div>
+
+                <div style={{ textAlign: "center", marginBottom: 24 }}>
+                  <motion.div
+                    animate={{ rotate: [0, -8, 8, -8, 0], scale: [1, 1.15, 1] }}
+                    transition={{
+                      duration: 1,
+                      delay: 0.8,
+                      repeat: Number.POSITIVE_INFINITY,
+                      repeatDelay: 4,
+                    }}
+                    style={{
+                      fontSize: 52,
+                      display: "inline-block",
+                      marginBottom: 8,
+                    }}
+                  >
+                    🎒
+                  </motion.div>
+                  <h1
+                    style={{
+                      margin: 0,
+                      fontSize: "1.75rem",
+                      fontWeight: 900,
+                      background:
+                        "linear-gradient(135deg, #9b27af, #e91e8c, #2196f3)",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    Welcome, Superstar! ⭐
+                  </h1>
+                  <p
+                    style={{
+                      color: "#888",
+                      fontSize: "0.9rem",
+                      fontWeight: 600,
+                      marginTop: 6,
+                    }}
+                  >
+                    Enter your Roll Number to start learning 🚀
+                  </p>
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <label
+                    htmlFor="roll"
+                    style={{
+                      display: "block",
+                      fontSize: "0.85rem",
+                      fontWeight: 800,
+                      marginBottom: 8,
+                      color: "#c44dff",
+                    }}
+                  >
+                    📋 Your Roll Number
+                  </label>
+                  <Input
+                    id="roll"
+                    placeholder="Enter your Roll Number"
+                    value={rollNumber}
+                    onChange={(e) => setRollNumber(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                    className="roll-input"
+                    data-ocid="student_login.input"
+                  />
+                </div>
+
+                {error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    style={{
+                      background: "#fff0f5",
+                      border: "2px solid #ff6b9d",
+                      borderRadius: 16,
+                      padding: "10px 14px",
+                      fontSize: "0.875rem",
+                      fontWeight: 700,
+                      textAlign: "center",
+                      color: "#d63384",
+                      marginBottom: 14,
+                    }}
+                    data-ocid="student_login.error_state"
+                  >
+                    {error}
+                  </motion.div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleLogin}
+                  disabled={loading}
+                  className={loading ? "" : "shimmer-btn"}
+                  data-ocid="student_login.submit_button"
                   style={{
-                    margin: 0,
-                    fontSize: "1.75rem",
+                    width: "100%",
+                    height: "3.25rem",
+                    borderRadius: "9999px",
+                    border: "none",
+                    color: "white",
                     fontWeight: 900,
-                    background:
-                      "linear-gradient(135deg, #9b27af, #e91e8c, #2196f3)",
-                    WebkitBackgroundClip: "text",
-                    WebkitTextFillColor: "transparent",
-                    backgroundClip: "text",
-                    lineHeight: 1.2,
+                    fontSize: "1.05rem",
+                    letterSpacing: "0.02em",
+                    cursor: loading ? "not-allowed" : "pointer",
+                    background: loading
+                      ? "linear-gradient(90deg, #aaa, #ccc)"
+                      : undefined,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    boxShadow: loading
+                      ? "none"
+                      : "0 6px 20px rgba(196,77,255,0.45)",
+                    textShadow: "0 1px 4px rgba(0,0,0,0.2)",
                   }}
                 >
-                  Welcome, Superstar! ⭐
-                </h1>
+                  {loading ? (
+                    <>
+                      <Loader2
+                        size={20}
+                        style={{ animation: "spin 1s linear infinite" }}
+                      />
+                      Logging in...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={20} />🚀 Let&apos;s Go!
+                    </>
+                  )}
+                </button>
+
                 <p
                   style={{
-                    color: "#888",
-                    fontSize: "0.9rem",
+                    textAlign: "center",
+                    color: "#aaa",
+                    fontSize: "0.78rem",
                     fontWeight: 600,
-                    marginTop: 6,
+                    marginTop: 14,
                   }}
                 >
-                  Enter your Roll Number to start learning 🚀
+                  Ask your teacher if you don&apos;t know your Roll Number
                 </p>
               </div>
+            </motion.div>
 
-              {/* Roll number field */}
-              <div style={{ marginBottom: 16 }}>
-                <label
-                  htmlFor="roll"
-                  style={{
-                    display: "block",
-                    fontSize: "0.85rem",
-                    fontWeight: 800,
-                    marginBottom: 8,
-                    color: "#c44dff",
-                  }}
-                >
-                  📋 Your Roll Number
-                </label>
-                <Input
-                  id="roll"
-                  placeholder="Enter your Roll Number"
-                  value={rollNumber}
-                  onChange={(e) => setRollNumber(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                  className="roll-input"
-                  data-ocid="student_login.input"
-                />
-              </div>
-
-              {/* Error message */}
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  style={{
-                    background: "#fff0f5",
-                    border: "2px solid #ff6b9d",
-                    borderRadius: 16,
-                    padding: "10px 14px",
-                    fontSize: "0.875rem",
-                    fontWeight: 700,
-                    textAlign: "center",
-                    color: "#d63384",
-                    marginBottom: 14,
-                  }}
-                  data-ocid="student_login.error_state"
-                >
-                  {error}
-                </motion.div>
-              )}
-
-              {/* Submit */}
-              <button
+            {/* Install App button — shown when browser supports PWA install */}
+            {canInstall && (
+              <motion.button
                 type="button"
-                onClick={handleLogin}
-                disabled={loading}
-                className={loading ? "" : "shimmer-btn"}
-                data-ocid="student_login.submit_button"
-                style={{
-                  width: "100%",
-                  height: "3.25rem",
-                  borderRadius: "9999px",
-                  border: "none",
-                  color: "white",
-                  fontWeight: 900,
-                  fontSize: "1.05rem",
-                  letterSpacing: "0.02em",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  background: loading
-                    ? "linear-gradient(90deg, #aaa, #ccc)"
-                    : undefined,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  boxShadow: loading
-                    ? "none"
-                    : "0 6px 20px rgba(196,77,255,0.45)",
-                  textShadow: "0 1px 4px rgba(0,0,0,0.2)",
-                }}
+                onClick={handleInstall}
+                disabled={installing}
+                className="install-btn"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.5 }}
+                data-ocid="student_login.install_button"
               >
-                {loading ? (
-                  <>
-                    <Loader2
-                      size={20}
-                      style={{ animation: "spin 1s linear infinite" }}
-                    />
-                    Logging in...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={20} />🚀 Let&apos;s Go!
-                  </>
-                )}
-              </button>
+                <Download size={18} />
+                {installing ? "Installing..." : "📲 Install App"}
+              </motion.button>
+            )}
 
-              <p
-                style={{
-                  textAlign: "center",
-                  color: "#aaa",
-                  fontSize: "0.78rem",
-                  fontWeight: 600,
-                  marginTop: 14,
-                }}
-              >
-                Ask your teacher if you don&apos;t know your Roll Number
-              </p>
-            </div>
-          </motion.div>
+            {/* Admin Login button */}
+            <motion.button
+              type="button"
+              onClick={() => onNavigate("admin-login")}
+              className="ghost-btn"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 }}
+              data-ocid="student_login.admin_login_button"
+            >
+              🔐 Admin Login
+            </motion.button>
+          </div>
         </main>
       </div>
     </>

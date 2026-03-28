@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useActor } from "../hooks/useActor";
 import { useInternetIdentity } from "../hooks/useInternetIdentity";
 import type { Page } from "./LandingPage";
@@ -13,21 +13,30 @@ interface Props {
 }
 
 export default function AdminLogin({ onAdminLogin, onBack }: Props) {
-  const { login, loginStatus, identity, isLoggingIn } = useInternetIdentity();
+  const { login, loginStatus, identity, isLoggingIn, clear } =
+    useInternetIdentity();
   const { actor } = useActor();
+  const [adminCheckError, setAdminCheckError] = useState(false);
 
   useEffect(() => {
     if (loginStatus === "success" && identity && actor) {
+      setAdminCheckError(false);
       actor
         .isCallerAdmin()
         .then((isAdmin) => {
           if (isAdmin) {
             onAdminLogin();
+          } else {
+            setAdminCheckError(true);
+            clear();
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          setAdminCheckError(true);
+          clear();
+        });
     }
-  }, [loginStatus, identity, actor, onAdminLogin]);
+  }, [loginStatus, identity, actor, onAdminLogin, clear]);
 
   return (
     <div className="min-h-screen font-nunito bg-background flex flex-col">
@@ -42,7 +51,7 @@ export default function AdminLogin({ onAdminLogin, onBack }: Props) {
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
           <img
-            src="/assets/generated/classio-kids-logo-transparent.dim_400x120.png"
+            src="/assets/uploads/classio_logo_reel_compressed-019d34e7-3f43-735c-a01a-d5ae52a4ffd6-1.jpeg"
             alt="Classio Kids"
             className="h-12 w-auto object-contain ml-2"
           />
@@ -68,7 +77,7 @@ export default function AdminLogin({ onAdminLogin, onBack }: Props) {
             </p>
           </div>
 
-          {loginStatus === "success" ? (
+          {loginStatus === "success" && !adminCheckError ? (
             <div className="text-center" data-ocid="admin_login.success_state">
               <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-blue-600" />
               <p className="font-bold text-gray-700">
@@ -90,12 +99,14 @@ export default function AdminLogin({ onAdminLogin, onBack }: Props) {
                 )}
                 {isLoggingIn ? "Connecting..." : "Login with Internet Identity"}
               </Button>
-              {loginStatus === "loginError" && (
+              {(loginStatus === "loginError" || adminCheckError) && (
                 <div
                   className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm font-semibold"
                   data-ocid="admin_login.error_state"
                 >
-                  ⚠️ Login failed. Please try again.
+                  {adminCheckError
+                    ? "⚠️ Access denied. This account is not an admin."
+                    : "⚠️ Login failed. Please try again."}
                 </div>
               )}
             </div>
