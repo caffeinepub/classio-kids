@@ -221,10 +221,11 @@ function RhymesViewer({ grade }: { grade: string }) {
             selected.videoId ? (
               <div className="w-full aspect-video rounded-2xl overflow-hidden">
                 <iframe
-                  src={`https://www.youtube.com/embed/${selected.videoId}`}
+                  src={`https://www.youtube-nocookie.com/embed/${selected.videoId}?rel=0&modestbranding=1&playsinline=1`}
                   title={selected.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
+                  sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-fullscreen"
                   className="w-full h-full"
                 />
               </div>
