@@ -5,44 +5,64 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
+declare global {
+  interface Window {
+    __pwaInstallPrompt: BeforeInstallPromptEvent | null;
+  }
+}
+
 export function usePWAInstall() {
   const [installPrompt, setInstallPrompt] =
-    useState<BeforeInstallPromptEvent | null>(null);
-  const [isInstalled, setIsInstalled] = useState(false);
+    useState<BeforeInstallPromptEvent | null>(
+      () => window.__pwaInstallPrompt ?? null,
+    );
+  const [isInstalled, setIsInstalled] = useState(
+    window.matchMedia("(display-mode: standalone)").matches,
+  );
 
   useEffect(() => {
-    // Already running as installed PWA
-    if (window.matchMedia("(display-mode: standalone)").matches) {
-      setIsInstalled(true);
-      return;
+    if (isInstalled) return;
+
+    // Pick up already-captured global prompt
+    if (window.__pwaInstallPrompt) {
+      setInstallPrompt(window.__pwaInstallPrompt);
     }
 
-    const handler = (e: Event) => {
-      e.preventDefault();
-      setInstallPrompt(e as BeforeInstallPromptEvent);
-    };
-
-    window.addEventListener("beforeinstallprompt", handler);
-    window.addEventListener("appinstalled", () => {
+    function onReady() {
+      if (window.__pwaInstallPrompt)
+        setInstallPrompt(window.__pwaInstallPrompt);
+    }
+    function onInstalled() {
       setIsInstalled(true);
       setInstallPrompt(null);
-    });
+      window.__pwaInstallPrompt = null;
+    }
 
-    return () => window.removeEventListener("beforeinstallprompt", handler);
-  }, []);
+    window.addEventListener("pwaInstallReady", onReady);
+    window.addEventListener("appinstalled", onInstalled);
+    window.addEventListener("pwaInstalled", onInstalled);
+
+    return () => {
+      window.removeEventListener("pwaInstallReady", onReady);
+      window.removeEventListener("appinstalled", onInstalled);
+      window.removeEventListener("pwaInstalled", onInstalled);
+    };
+  }, [isInstalled]);
 
   async function promptInstall() {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const choice = await installPrompt.userChoice;
+    const prompt = installPrompt ?? window.__pwaInstallPrompt;
+    if (!prompt) return;
+    await prompt.prompt();
+    const choice = await prompt.userChoice;
     if (choice.outcome === "accepted") {
       setIsInstalled(true);
       setInstallPrompt(null);
+      window.__pwaInstallPrompt = null;
     }
   }
 
   return {
-    canInstall: !!installPrompt && !isInstalled,
+    canInstall: !!(installPrompt ?? window.__pwaInstallPrompt) && !isInstalled,
     isInstalled,
     promptInstall,
   };

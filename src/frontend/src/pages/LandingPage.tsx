@@ -137,7 +137,7 @@ export default function LandingPage({ onNavigate }: Props) {
                   className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold text-lg px-8 py-4 rounded-full shadow-lg transition-all hover:scale-105"
                   data-ocid="hero.install_app.button"
                 >
-                  <Download className="w-5 h-5" />📲 Install App on Your Device
+                  <Download className="w-5 h-5" />📲 Install App
                 </motion.button>
               )}
             </motion.div>
